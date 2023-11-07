@@ -35,32 +35,35 @@ def main():
             )
 
             # Save the response audio file
-            #current_directory = os.getcwd()
-            #speech_file_path = Path(current_directory) / "speech.mp3"
-            #with open(speech_file_path, "wb") as audio_file:
-                #audio_file.write(response.content)
+            current_directory = os.getcwd()
+            speech_file_path = Path(current_directory) / "speech.mp3"
+            with open(speech_file_path, "wb") as audio_file:
+                audio_file.write(response.content)
 
             # Display the audio file in the app with HTML audio tag
             audio_html = f'<audio controls controlsList="nodownload"><source src="data:audio/mp3;base64,{base64.b64encode(response.content).decode()}" type="audio/mp3"></audio>'
             audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
-            # Allow the user to download the audio file using a separate link
-            st.markdown(get_binary_file_downloader_html("speech.mp3", 'Download Audio'), unsafe_allow_html=True)
-        else:
-            st.warning("Please enter text to convert.")
-
-    # Check if audio file exists, then display the audio player
+    # Check if audio file exists, then display the audio player and download link
     if os.path.exists("speech.mp3"):
         audio_html = f'<audio controls controlsList="nodownload"><source src="data:audio/mp3;base64,{base64.b64encode(open("speech.mp3", "rb").read()).decode()}" type="audio/mp3"></audio>'
         audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
 
+        # Allow the user to download the audio file using a separate link
+        st.markdown(get_binary_file_downloader_html("speech.mp3", 'Download Audio'), unsafe_allow_html=True)
+    else:
+        st.info("Audio file not available. Convert text to speech to generate the file.")
+
 # Function to create a download link for a file
 def get_binary_file_downloader_html(file_path, file_label='File'):
-    with open(file_path, 'rb') as file:
-        data = file.read()
-    bin_str = base64.b64encode(data).decode()
-    href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{file_path}">{file_label}</a>'
-    return href
+    try:
+        with open(file_path, 'rb') as file:
+            data = file.read()
+        bin_str = base64.b64encode(data).decode()
+        href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{file_path}">{file_label}</a>'
+        return href
+    except FileNotFoundError:
+        return f"{file_label} (Not Available)"
 
 if __name__ == "__main__":
     main()
