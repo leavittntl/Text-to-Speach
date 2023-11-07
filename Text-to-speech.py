@@ -1,45 +1,66 @@
 import streamlit as st
-import requests
-
-# Assuming OpenAI provides an endpoint for text-to-speech
-API_ENDPOINT = "https://api.openai.com/text-to-speech"
-
-# Function to convert text to speech using the OpenAI API
-def convert_to_speech(text, voice):
-    # Your API request code here
-    # Use the API endpoint, headers, and request payload as per the documentation
-    # Send a POST request to the API and get the audio file in response
-    # Return the audio file or a link to the audio file
-
-    # This is a hypothetical example; replace it with the actual API request code
-    response = requests.post(
-        API_ENDPOINT,
-        headers={"Authorization": "Bearer YOUR_API_KEY"},
-        json={"text": text, "voice": voice}
-    )
-
-    if response.status_code == 200:
-        return response.content
-    else:
-        return None
+from pathlib import Path
+import openai
+import os
+import base64
 
 # Streamlit app
 def main():
     st.title("Text-to-Speech App")
 
-    # File upload and voice selection
-    uploaded_file = st.file_uploader("Upload a .txt file", type=["txt"])
-    voice = st.selectbox("Select Voice", ["Voice1", "Voice2", "Voice3"])
+    # Prompt user for OpenAI API key
+    api_key = st.text_input("Enter your OpenAI API key", type="password")
+
+    if not api_key:
+        st.warning("Please enter your OpenAI API key.")
+        st.stop()
+
+    # Initialize OpenAI client
+    openai.api_key = api_key
+
+    # Text input and voice selection
+    text_input = st.text_area("Enter text to convert to speech")
+    voice = st.selectbox("Select Voice", ["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
+
+    # Placeholder for displaying audio player and download link
+    audio_placeholder = st.empty()
 
     if st.button("Convert to Speech"):
-        if uploaded_file is not None:
-            text = uploaded_file.read().decode("utf-8")
-            audio_data = convert_to_speech(text, voice)
+        if text_input:
+            # Make a request to the OpenAI Audio API
+            response = openai.audio.speech.create(
+                model="tts-1",
+                voice=voice,
+                input=text_input
+            )
 
-            if audio_data is not None:
-                st.audio(audio_data, format="audio/wav", start_time=0)
-            else:
-                st.error("Error converting text to speech. Please try again.")
+            # Save the response audio file
+            #current_directory = os.getcwd()
+            #speech_file_path = Path(current_directory) / "speech.mp3"
+            #with open(speech_file_path, "wb") as audio_file:
+                #audio_file.write(response.content)
+
+            # Display the audio file in the app with HTML audio tag
+            audio_html = f'<audio controls controlsList="nodownload"><source src="data:audio/mp3;base64,{base64.b64encode(response.content).decode()}" type="audio/mp3"></audio>'
+            audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+
+            # Allow the user to download the audio file using a separate link
+            st.markdown(get_binary_file_downloader_html("speech.mp3", 'Download Audio'), unsafe_allow_html=True)
+        else:
+            st.warning("Please enter text to convert.")
+
+    # Check if audio file exists, then display the audio player
+    if os.path.exists("speech.mp3"):
+        audio_html = f'<audio controls controlsList="nodownload"><source src="data:audio/mp3;base64,{base64.b64encode(open("speech.mp3", "rb").read()).decode()}" type="audio/mp3"></audio>'
+        audio_placeholder.markdown(audio_html, unsafe_allow_html=True)
+
+# Function to create a download link for a file
+def get_binary_file_downloader_html(file_path, file_label='File'):
+    with open(file_path, 'rb') as file:
+        data = file.read()
+    bin_str = base64.b64encode(data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{file_path}">{file_label}</a>'
+    return href
 
 if __name__ == "__main__":
     main()
